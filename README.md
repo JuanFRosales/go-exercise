@@ -10,18 +10,18 @@
 ## Tests in postman
 
 ### New task
-![image](/screenshots/Add.png)
+![image](/Screenshots/Add.png)
 
 ### Get all tasks
-![image](/screenshots/Get.png)
+![image](/Screenshots/Get.png)
 
 ### Mark as done
-![image](/screenshots/Update.png)
+![image](/Screenshots/Update.png)
 
 ### Filter by done
-![image](/screenshots/Filter.png)
+![image](/Screenshots/Filter.png)
 
 ### Sort by Completion in Descending Order
-![image](/screenshots/Sort.png)
+![image](/Screenshots/Sort.png)
 
 
