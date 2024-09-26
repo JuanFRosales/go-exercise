@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
@@ -26,7 +28,6 @@ func main() {
 	fmt.Println("hello world")
 
 	if os.Getenv("ENV") != "production" {
-		// Load the .env file if not in production
 		err := godotenv.Load(".env")
 		if err != nil {
 			log.Fatal("Error loading .env file:", err)
@@ -65,19 +66,33 @@ func main() {
 	}
 
 	log.Fatal(app.Listen("0.0.0.0:" + port))
-
 }
 
 func getTodos(c *fiber.Ctx) error {
 	var todos []Todo
 
-	cursor, err := collection.Find(context.Background(), bson.M{})
+	// Fetch query parameters for filtering and sorting
+	completedQuery := c.Query("completed") // Filter by completion status
+	sortBy := c.Query("sortBy", "body")     // Default sort by body
+	sortOrder := c.Query("sortOrder", "asc") // Default sort order
 
+	// Create filter based on query parameters
+	filter := bson.M{}
+	if completedQuery != "" {
+		completed, err := strconv.ParseBool(completedQuery)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid value for completed filter"})
+		}
+		filter["completed"] = completed
+	}
+
+	// Retrieve todos from MongoDB
+	cursor, err := collection.Find(context.Background(), filter)
 	if err != nil {
 		return err
 	}
-
 	defer cursor.Close(context.Background())
+
 	for cursor.Next(context.Background()) {
 		var todo Todo
 		if err := cursor.Decode(&todo); err != nil {
@@ -85,6 +100,25 @@ func getTodos(c *fiber.Ctx) error {
 		}
 		todos = append(todos, todo)
 	}
+
+	
+	switch sortOrder {
+	case "asc":
+		sort.Slice(todos, func(i, j int) bool {
+			if sortBy == "completed" {
+				return !todos[i].Completed && todos[j].Completed 
+			}
+			return todos[i].Body < todos[j].Body 
+		})
+	case "desc":
+		sort.Slice(todos, func(i, j int) bool {
+			if sortBy == "completed" {
+				return todos[i].Completed && !todos[j].Completed 
+			}
+			return todos[i].Body > todos[j].Body 
+		})
+	}
+
 	return c.JSON(todos)
 }
 
@@ -98,7 +132,7 @@ func createTodo(c *fiber.Ctx) error {
 	insertResult, err := collection.InsertOne(context.Background(), todo)
 	if err != nil {
 		return err
-}
+	}
 
 	todo.ID = insertResult.InsertedID.(primitive.ObjectID)
 
@@ -122,8 +156,8 @@ func updateTodo(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(fiber.Map{"success": true})
-
 }
+
 func deleteTodo(c *fiber.Ctx) error {
 	id := c.Params("id")
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -141,4 +175,3 @@ func deleteTodo(c *fiber.Ctx) error {
 
 	return c.Status(200).JSON(fiber.Map{"success": true})
 }
-
